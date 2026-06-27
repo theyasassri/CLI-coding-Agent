@@ -1,1 +1,4 @@
-        1 file(s) copied.
+# config/__init__.py
+from config.schema import AuditorSettings
+
+__all__ = ["AuditorSettings"]
