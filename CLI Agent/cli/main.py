@@ -3,13 +3,12 @@ import sys
 from pathlib import Path
 import click
 from rich.console import Console
-from rich.table import Table
+
 
 # Import our backend components built in previous steps
-from config.schema import AuditorSettings
-from scanner.python_scanner import PythonScanner
-from rag.store import VectorStoreManager
-from rag.indexer import KnowledgeIndexer
+from config import AuditorSettings
+from rag import VectorStoreManager, KnowledgeIndexer
+from cli.commands.audit import execute_audit_pipeline
 
 # Initialize Rich console for beautiful terminal formatting
 console = Console()
@@ -37,37 +36,10 @@ def init():
 
 @cli.command(name="scan")
 @click.argument("target_path", type=click.Path(exists=True, file_okay=False, dir_okay=True))
-def scan(target_path: str):
+@click.option("--dry-run", is_flag=True, help="Preview identified code anomalies without running AI correction cycles.")
+def scan(target_path: str, dry_run:bool):
     """Executes a local AST code scanning traversal over a targeted workspace directory."""
-    console.print(f"[bold blue]Launching security AST analysis scanner on directory: {target_path}[/bold blue]\n")
+    execute_audit_pipeline(target_path=target_path, dry_run=dry_run)
     
-    scanner = PythonScanner()
-    findings = scanner.scan(target_path)
-    
-    if not findings:
-        console.print("[bold green]✨ Success! No vulnerabilities or anti-patterns detected in this repository.[/bold green]")
-        return
-
-    # Build a clean output summary report table using Rich UI layouts
-    table = Table(title=f"Scan Report Summary ({len(findings)} Issues Detected)", title_style="bold magenta")
-    table.add_column("File", style="cyan")
-    table.add_column("Line:Col", style="inverse")
-    table.add_column("Severity", style="bold red")
-    table.add_column("CWE ID", style="yellow")
-    table.add_column("Description", style="white")
-
-    for f in findings:
-        # Style severities cleanly
-        sev_color = "red" if f.severity in ["CRITICAL", "HIGH"] else "yellow"
-        table.add_row(
-            f.file,
-            f"{f.line}:{f.col}",
-            f"[{sev_color}]{f.severity}[/{sev_color}]",
-            f.cwe_id,
-            f.description
-        )
-
-    console.print(table)
-
 if __name__ == "__main__":
     cli()
