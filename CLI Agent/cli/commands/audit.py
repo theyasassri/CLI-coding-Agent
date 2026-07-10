@@ -5,8 +5,8 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Import our cross-module layers
-from scanner.python_scanner import PythonScanner
-from rag.store import VectorStoreManager
+from scanner import PythonScanner
+from rag import VectorStoreManager
 
 console = Console()
 
