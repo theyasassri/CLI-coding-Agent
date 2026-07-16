@@ -1,5 +1,5 @@
-# cli/commands/audit.py
 from pathlib import Path
+import os
 import click
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -7,13 +7,14 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 # Import our cross-module layers
 from scanner import PythonScanner
 from rag import VectorStoreManager
+from agent import CodeRepairOrchestrator
 
 console = Console()
 
 def execute_audit_pipeline(target_path: str, dry_run: bool):
     """
     Main background operation that connects the AST scanner findings 
-    with the RAG context search matches.
+    RAG database context matching, and the live AI healing engine loop.
     """
     path_obj = Path(target_path).resolve()
     
@@ -31,10 +32,10 @@ def execute_audit_pipeline(target_path: str, dry_run: bool):
         progress.update(scan_task, completed=True, description="[green]✓ AST Code Scanning Completed.[/green]")
         
         if not findings:
-            console.print("\n[bold green]✨ Success! Your codebase matches all safety thresholds.[/bold green]")
+            console.print("\n[bold green] Success! Your codebase matches all safety thresholds.[/bold green]")
             return
 
-        console.print(f"\n[bold yellow]⚠️ Identified {len(findings)} security anti-patterns. Querying memory buffers...[/bold yellow]\n")
+        console.print(f"\n[bold yellow] Identified {len(findings)} security anti-patterns. Querying memory buffers...[/bold yellow]\n")
 
         # Task Step B: Vector Store Querying (RAG Context Enrichment)
         rag_task = progress.add_task(description="[magenta]Fetching matching structural guidelines from ChromaDB...[/magenta]", total=None)
@@ -71,8 +72,14 @@ def execute_audit_pipeline(target_path: str, dry_run: bool):
         console.print("-" * 60)
 
     if dry_run:
-        console.print("\n[bold yellow]🔧 --dry-run active: AI agent structural autofix cycles skipped.[/bold yellow]")
+        console.print("\n[bold yellow] --dry-run active: AI agent structural autofix cycles skipped.[/bold yellow]")
     else:
-        console.print("\n[bold blue]🚀 Next Step: Passing payloads into the LLM Self-Healing Iteration Loop...[/bold blue]")
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            console.print("\n[bold red]Error: Missing Anthropic API key. Please set the 'ANTHROPIC_API_KEY' environment variable to enable AI-driven patching.[/bold red]")
+            console.print("[dim]Please set the key via: $env:ANTHROPIC_API_KEY='your_key' (PowerShell) or use --dry-run[/dim]\n")
+            return
+        console.print("\n[bold blue] Next Step: Passing payloads into the LLM Self-Healing Iteration Loop...[/bold blue]")
         # This will trigger our agent/orchestrator.py code down the road!
+        orchestrator = CodeRepairOrchestrator(repo_path=str(path_obj))
+        orchestrator.execute_self_healing_loop(findings=findings)
  
