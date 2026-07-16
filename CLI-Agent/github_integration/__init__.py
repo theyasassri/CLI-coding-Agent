@@ -1,1 +1,1 @@
-        1 file(s) copied.
+from .pr_manager import GitHubPRManager
