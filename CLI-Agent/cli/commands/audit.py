@@ -74,9 +74,9 @@ def execute_audit_pipeline(target_path: str, dry_run: bool):
     if dry_run:
         console.print("\n[bold yellow] --dry-run active: AI agent structural autofix cycles skipped.[/bold yellow]")
     else:
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            console.print("\n[bold red]Error: Missing Anthropic API key. Please set the 'ANTHROPIC_API_KEY' environment variable to enable AI-driven patching.[/bold red]")
-            console.print("[dim]Please set the key via: $env:ANTHROPIC_API_KEY='your_key' (PowerShell) or use --dry-run[/dim]\n")
+        if not os.getenv("GEMINI_API_KEY"):
+            console.print("\n[bold red]Execution Halted: 'GEMINI_API_KEY' environment variable not found.[/bold red]")
+            console.print("[dim]Please set the key via: $env:GEMINI_API_KEY='your_key' (PowerShell) or use --dry-run[/dim]\n")
             return
         console.print("\n[bold blue] Next Step: Passing payloads into the LLM Self-Healing Iteration Loop...[/bold blue]")
         # This will trigger our agent/orchestrator.py code down the road!
