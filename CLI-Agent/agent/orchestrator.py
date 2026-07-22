@@ -7,7 +7,7 @@ from google.genai import types
 from rich.console import Console
 
 # Import our tool executors and tool metadata schemas
-from agent.tools import read_file_content, write_file_content, AVAILABLE_TOOLS_MANIFEST
+from agent.tools import read_file_content, write_file_content
 from scanner.base import Finding
 
 console = Console()
@@ -35,7 +35,7 @@ class CodeRepairOrchestrator:
         # Mapping key names to python functions for execution
         tool_functions = {
             "read_file_content": read_file_content,
-            "write_file_patch": write_file_content
+            "write_file_content": write_file_content
         }
         
         for idx, finding in enumerate(findings, 1):
@@ -53,7 +53,7 @@ class CodeRepairOrchestrator:
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.2,
-                tools=[{"function_declarations": AVAILABLE_TOOLS_MANIFEST}]
+                tools=[read_file_content, write_file_content]
             )
             
             # Gemini handles multi-turn conversations cleanly using explicit chat sessions
@@ -100,7 +100,7 @@ class CodeRepairOrchestrator:
                             # Execute local file system adjustments dynamically
                             if tool_name == "read_file_content":
                                 result = read_file_content(relative_path, self.repo_path)
-                            elif tool_name == "write_file_patch":
+                            elif tool_name == "write_file_content":
                                 updated_content = str(tool_args.get("updated_content", ""))
                                 result = write_file_content(relative_path, self.repo_path, updated_content)
                         else:
