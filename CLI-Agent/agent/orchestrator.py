@@ -5,9 +5,10 @@ from typing import List, Dict, Any
 from google import genai
 from google.genai import types
 from rich.console import Console
+import difflib
 
 # Import our tool executors and tool metadata schemas
-from agent.tools import read_file_content, write_file_content
+from agent.tools import read_file_content, write_file_content, validate_patch_integrity
 from scanner.base import Finding
 
 console = Console()
@@ -30,7 +31,7 @@ class CodeRepairOrchestrator:
         Iterates over code vulnerabilities, hands them to Gemini, 
         and executes real-time patches using native tool declarations.
         """
-        console.print(f"\n[bold purple] Activating Gemini AI Core. Iteration limit: {max_iterations}[/bold purple]")
+        console.print(f"\n[bold purple] Activating Gemini AI Core (Self-Validation Enabled). Max Cycles: {max_iterations}[/bold purple]")
         
         # Mapping key names to python functions for execution
         tool_functions = {
@@ -58,6 +59,7 @@ class CodeRepairOrchestrator:
             
             # Gemini handles multi-turn conversations cleanly using explicit chat sessions
             chat = self.client.chats.create(model=self.model, config=config)
+
             target_file_path = str(Path(finding.file).as_posix())
             if not target_file_path.startswith("sandbox/") and Path(self.repo_path, "sandbox", target_file_path).exists():
                 target_file_path = f"sandbox/{target_file_path}"
@@ -69,7 +71,8 @@ class CodeRepairOrchestrator:
                 f"- Severity: {finding.severity}\n"
                 f"- Issue: {finding.description}\n"
                 f"- Guidance context: {finding.fix_hint}\n\n"
-                f"Please inspect the file at '{target_file_path}' using 'read_file_content' and completely patch the vulnerability using 'write_file_patch'."
+                f"Please inspect the file at '{target_file_path}' using 'read_file_content' and completely patch the vulnerability using 'write_file_content',"
+                f"and ensure the resulting code compiles cleanly."
             )
             
             iteration = 0
@@ -95,7 +98,6 @@ class CodeRepairOrchestrator:
                         
                         # Initialize result to prevent unbound variable issues
                         result = ""
-                        
                         if tool_name in tool_functions:
                             # Safely extract paths and parameters with default fallbacks
                             relative_path = str(tool_args.get("relative_path", ""))
@@ -105,7 +107,39 @@ class CodeRepairOrchestrator:
                                 result = read_file_content(relative_path, self.repo_path)
                             elif tool_name == "write_file_content":
                                 updated_content = str(tool_args.get("updated_content", ""))
-                                result = write_file_content(relative_path, self.repo_path, updated_content)
+                                old_content = read_file_content(relative_path, self.repo_path)
+                                write_res = write_file_content(relative_path, self.repo_path, updated_content)
+
+                                console.print("\n[bold yellow]---Propose Code Patch Diff ---[/bold yellow]")
+                                diff = difflib.unified_diff(
+                                    old_content.splitlines(),
+                                    updated_content.splitlines(),
+                                    fromfile="a/" + relative_path,
+                                    tofile="b/" + relative_path,
+                                    lineterm=""
+                                )
+
+                                for line in diff:
+                                    if line.startswith('+') and not line.startswith('+++'):
+                                        console.print(f"[green]{line}[/green]")
+                                    elif line.startswith('-') and not line.startswith('---'):
+                                        console.print(f"[red]{line}[/red]")
+                                    elif line.startswith('@'):
+                                        console.print(f"[cyan]{line}[/cyan]")
+                                    else:
+                                        console.print(f"[dim]{line}[/dim]")
+
+                                console.print("[bold yellow]====================[/bold yellow]\n")
+
+                                console.print(f"[dim]Executing automated syntax and validation check...[/dim]")
+                                val_check = validate_patch_integrity(relative_path, self.repo_path)
+
+                                if val_check["success"]:
+                                    console.print(f"[green]{val_check['feedback']}[/green]")
+                                    result = f"{write_res}\n\nValidation Passed: {val_check['feedback']}"
+                                else:
+                                    console.print(f"[red]{val_check['feedback']}[/red]")
+                                    result = f"{write_res}\n\nCRITICAL VALIDATION ERROR : \n{val_check['feedback']}\nPlease fix this error and write a valid patch."
                         else:
                             result = f"Error: Function {tool_name} is unhandled."
                         

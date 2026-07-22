@@ -1,15 +1,9 @@
-def calculate_user_expression(user_input: str):
-    """
-    DANGEROUS: Takes direct raw string input from an untrusted source
-    and passes it straight into the native interpreter evaluation engine.
-    """
+import ast
 
-    print(f"Processing structural expression input: {user_input}")
+# sandbox/vulnerable_app.py
 
-    result = eval(user_input)
+def calculate_stuff(user_input):
+    return eval(user_input)
 
-    return result
-
-if __name__=="__main__":
-    sample_payload = "__import__('os'). system('echo VULNERABILITY_EXPLOITED')"
-    calculate_user_expression(sample_payload)
+if __name__ == "__main__":
+    print(calculate_stuff("10 + 20"))

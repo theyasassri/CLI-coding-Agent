@@ -23,7 +23,7 @@ class SecurityNodeVisitor(ast.NodeVisitor):
                     col=node.col_offset,
                     severity="CRITICAL",
                     cwe_id="CWE-95",
-                    description="Direct call to eval() ddetected. This permits arbitrary remote code execution if input is untrusted.",
+                    description="Direct call to eval() detected. This permits arbitrary remote code execution if input is untrusted.",
                     fix_hint="Replace eval() with literal_eval() from the built-in 'ast' module, or rewrite using safe dictionary lookups."
                 )
             )
@@ -52,19 +52,26 @@ class SecurityNodeVisitor(ast.NodeVisitor):
 class PythonScanner(BaseScanner):
     def scan(self, repo_path: str) -> List[Finding]:
         all_findings: List[Finding] = []
-        root_dir = Path(repo_path)
+        target_path = Path(repo_path)
+
+        base_repo_dir = Path.cwd()
 
         # Recursively search for target source files while skipping dependency noise
-        for path in root_dir.rglob("*.py"):
+        for path in target_path.rglob("*.py") if target_path.is_dir() else [target_path]:
             if any(part in path.parts for part in["node_modules", "tests", ".venv", ".git"]):
                 continue
             try:
                 code_content = path.read_text(encoding="utf-8")
+
                 #compile raw text structure cleanly directly into an AST object hierarchy
                 tree = ast.parse(code_content, filename=str(path))
-
-                #Run our customized node parsing visitor rules
-                relative_path = str(path.relative_to(root_dir))
+                try:
+                    #Run our customized node parsing visitor rules
+                    relative_path = str(path.relative_to(base_repo_dir)).replace("\\", "/")
+                except ValueError:
+                    relative_path = str(path.relative_to(target_path)).replace("\\", "/")
+                    if target_path.name:
+                        relative_path = f"{target_path.name}/{relative_path}"
                 visitor = SecurityNodeVisitor(relative_path)
                 visitor.visit(tree)
 
