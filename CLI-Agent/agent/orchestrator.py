@@ -58,15 +58,18 @@ class CodeRepairOrchestrator:
             
             # Gemini handles multi-turn conversations cleanly using explicit chat sessions
             chat = self.client.chats.create(model=self.model, config=config)
-            
+            target_file_path = str(Path(finding.file).as_posix())
+            if not target_file_path.startswith("sandbox/") and Path(self.repo_path, "sandbox", target_file_path).exists():
+                target_file_path = f"sandbox/{target_file_path}"
+
             user_message = (
                 f"Vulnerability Detected:\n"
-                f"- File: {finding.file}\n"
+                f"- Relative Path: {target_file_path}\n"
                 f"- Line: {finding.line}, Column: {finding.col}\n"
                 f"- Severity: {finding.severity}\n"
                 f"- Issue: {finding.description}\n"
                 f"- Guidance context: {finding.fix_hint}\n\n"
-                f"Please inspect this file and completely patch the vulnerability."
+                f"Please inspect the file at '{target_file_path}' using 'read_file_content' and completely patch the vulnerability using 'write_file_patch'."
             )
             
             iteration = 0
