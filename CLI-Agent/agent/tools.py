@@ -3,16 +3,22 @@ import json
 
 def read_file_content(relative_path:str, root_repo_path:str) -> str:
     """
-    Allows the AI agent to read the raw content of a file in the workspace."""
+    Reads and returns the contents of a specified file relatve to the root repository."""
+    base_path = Path(root_repo_path).resolve()
+    target_path = (base_path / relative_path).resolve()
 
+    if not target_path.exists():
+        sandbox_path = (base_path / "sandbox" / relative_path).resolve()
+        if sandbox_path.exists():
+            target_path = sandbox_path
+    if not target_path.exists():
+        return f"Error: File '{relative_path}' not found at path destination."
     try:
-        full_path = Path(root_repo_path) / relative_path
-        if not full_path.exists():
-            return f"Error: File '{relative_path}' not found at path destination."
-        return full_path.read_text(encoding="utf-8")
+        with open(target_path, "r", encoding="utf-8") as f:
+            return f.read()
     except Exception as e:
-        return f"Error reading file context: {str(e)}"
-    
+        return f"Error reading file: {str(e)}"
+
 def write_file_content(relative_path: str, root_repo_path: str, updated_content: str) -> str:
     """
     Allows the AI agent to write fully corrected code updated back to the disk."""
