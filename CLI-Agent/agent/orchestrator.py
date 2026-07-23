@@ -44,17 +44,27 @@ class CodeRepairOrchestrator:
             
             system_prompt = (
                 "You are an elite, autonomous AI security remediation engineer.\n"
-                "Your objective is to fix vulnerabilities detected via static AST analysis.\n"
-                "Always use the 'read_file_content' tool to fully read code files before patching them.\n"
-                "Once you have analyzed the issue, apply clean corrections using 'write_file_patch'.\n"
-                "Ensure your code edits adhere strictly to clean architectural conventions."
+                "Your ONLY way to view or edit code is by calling functions.\n"
+                "1. NEVER output code blocks in text responses.\n"
+                "2. ALWAYS call 'read_file_content' first to inspect the target file.\n"
+                "3. ALWAYS call 'write_file_patch' to apply the patch directly to disk."
+            )
+
+            calling_mode= (
+                types.FunctionCallingConfigMode.ANY if idx == 1
+                else types.FunctionCallingConfigMode.AUTO
             )
             
             # Formulate the developer configuration schema object
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                temperature=0.2,
-                tools=[read_file_content, write_file_content]
+                temperature=0.1,
+                tools=[read_file_content, write_file_content],
+                tool_config=types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=calling_mode
+                    )
+                )
             )
             
             # Gemini handles multi-turn conversations cleanly using explicit chat sessions
